@@ -1,0 +1,32 @@
+ErrorDocument 404 /404.html
+DirectoryIndex index.html index.php
+Options -Indexes
+
+# Old page addresses from the first version of the site
+Redirect 301 /about.html /about/
+Redirect 301 /services.html /services/
+Redirect 301 /team.html /about/team/
+Redirect 301 /staff-uraiz.html /about/team/syed-ali-uraiz/
+Redirect 301 /staff-aqsa.html /about/team/aqsa-ejaz/
+Redirect 301 /staff-ashir.html /about/team/ashir-raza/
+Redirect 301 /staff-noman.html /about/team/noman-malik/
+
+# Keep source files, inquiry data and repo internals private
+RedirectMatch 404 ^/(build|\.git|api/data)(/|$)
+RedirectMatch 404 ^/api/config\.php$
+RedirectMatch 404 \.(py|md|csv)$
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  <FilesMatch "\.html$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+  <FilesMatch "\.(css|js)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+  <FilesMatch "\.(webp|png|jpg|jpeg|svg|ico)$">
+    Header set Cache-Control "public, max-age=2592000"
+  </FilesMatch>
+</IfModule>
