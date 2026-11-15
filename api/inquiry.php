@@ -2,6 +2,16 @@
 declare(strict_types=1);
 
 $config = require __DIR__ . '/config.php';
+// Notification addresses set in the admin panel (Account page) take priority.
+$adminConfig = __DIR__ . '/data/admin-config.php';
+if (is_file($adminConfig)) {
+    $admin = include $adminConfig;
+    foreach (['notify_email', 'from_email'] as $k) {
+        if (!empty($admin['notify'][$k])) {
+            $config[$k] = $admin['notify'][$k];
+        }
+    }
+}
 
 function clean(string $key, int $max): string
 {

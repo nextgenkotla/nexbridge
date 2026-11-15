@@ -102,7 +102,7 @@
 
   // Knowledge Center category filter.
   var chips = document.querySelectorAll(".chip[data-filter]");
-  var posts = document.querySelectorAll("[data-posts] .post-card");
+  var posts = document.querySelectorAll("[data-posts] [data-category]");
   var empty = document.querySelector("[data-empty]");
   chips.forEach(function (chip) {
     chip.addEventListener("click", function () {

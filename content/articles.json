@@ -1,0 +1,42 @@
+{
+    "categories": [
+        "Study abroad guides",
+        "Visa updates",
+        "Scholarship information",
+        "Business advisory",
+        "Tax updates",
+        "Travel guides"
+    ],
+    "articles": [
+        {
+            "slug": "how-to-choose-a-study-abroad-destination",
+            "title": "How to choose the right study abroad destination",
+            "category": "Study abroad guides",
+            "date": "2026-11-10",
+            "excerpt": "Cost, language, program quality and post-study options all matter. Here is how to compare destinations without getting overwhelmed.",
+            "image": "",
+            "body": "Choosing where to study is often harder than choosing what to study. Each country has different costs, entry requirements, languages and opportunities after graduation. A structured comparison makes the decision much clearer.\n\n## 1. Start with your field of study\n\nSome countries are especially strong in particular fields. Germany is known for engineering, the UK for one-year master's degrees, and Hungary and China for English-taught medical programs. Begin with the countries that are strong in your subject.\n\n## 2. Be realistic about your total budget\n\nLook at tuition and living costs together. Some destinations with low tuition, such as Germany or Italy, still require proof of funds for living costs. Others with higher tuition offer generous scholarships. Compare the full cost of each year, not just the fee.\n\n## 3. Check the language of instruction\n\nMany European universities teach in English at master's level, while some bachelor's programs are only available in the local language. If you are willing to learn a new language, more options open up, especially in Türkiye, Germany and Italy.\n\n## 4. Consider life after graduation\n\nPost-study work options, local job markets and recognition of your degree in Pakistan all matter for your future. Check the current rules for each country, as they change regularly.\n\n## 5. Look at the scholarship landscape\n\nGovernment scholarships such as Türkiye Scholarships, Stipendium Hungaricum, DAAD and Chevening can transform your options. Their deadlines are often months before university deadlines, so plan early.\n\nIf you would like help comparing destinations for your own profile, book a consultation with our education team.",
+            "draft": false
+        },
+        {
+            "slug": "student-visa-document-checklist",
+            "title": "Student visa documents: a general checklist",
+            "category": "Visa updates",
+            "date": "2026-11-05",
+            "excerpt": "Most student visa applications ask for the same core documents. Use this checklist as a starting point, then confirm your destination's exact rules.",
+            "image": "",
+            "body": "Every country sets its own student visa rules, but most applications are built around the same core documents. Missing or inconsistent documents are among the most common reasons for delays and refusals.\n\n## Identity and travel\n\n- A valid passport, usually with at least six months' validity\n- Previous passports, if you have travelled before\n- Recent passport-sized photographs to the required specification\n\n## Admission\n\n- Your offer or acceptance letter\n- The document your university issues for the visa, such as a CAS (UK), CoE (Australia) or Form I-20 (USA)\n- Proof of any tuition deposit paid\n\n## Academic and language\n\n- Academic transcripts and degree certificates\n- Attested copies where required, for example by HEC\n- Your English test result, such as IELTS or PTE\n\n## Financial evidence\n\n- Bank statements showing the required funds, held for the required period\n- Sponsor letters and the sponsor's income evidence, if family is funding you\n- Scholarship letters, if applicable\n- A blocked account confirmation, where required, such as for Germany\n\n## Other common requirements\n\n- Health insurance meeting the country's requirements\n- Accommodation details\n- A statement of purpose explaining your study plans\n- Medical or tuberculosis test results, where required\n\nThis list is a general guide only. Always check the official requirements for your destination, or ask our visa team to review your file before you submit.",
+            "draft": false
+        },
+        {
+            "slug": "ntn-registration-guide-pakistan",
+            "title": "NTN registration in Pakistan: what you need to know",
+            "category": "Tax updates",
+            "date": "2026-10-28",
+            "excerpt": "A National Tax Number is the first step to filing returns and becoming an active taxpayer. Here is who needs one and how registration works.",
+            "image": "",
+            "body": "A National Tax Number (NTN) identifies you or your business with the Federal Board of Revenue (FBR). It is required to file income tax returns and to appear on the Active Taxpayers List.\n\n## Who needs an NTN?\n\n- Salaried individuals with taxable income\n- Freelancers and self-employed professionals\n- Sole proprietors and partnerships\n- Companies registered with SECP\n\n## Why being an active taxpayer matters\n\nFilers on the Active Taxpayers List generally pay lower withholding tax on many transactions, such as banking, property and vehicle registration. Filing on time also helps you avoid penalties.\n\n## How registration works\n\nIndividuals register online through FBR's IRIS system using their CNIC, a mobile number registered in their own name and an email address. Businesses also provide details of their business activity and address.\n\n## After registration\n\nOnce registered, you must file an annual income tax return and wealth statement. For most individuals, the deadline is 30 September each year, though FBR sometimes extends it.\n\nOur tax team can register your NTN and file your returns accurately and on time. Book a consultation to get started.",
+            "draft": false
+        }
+    ]
+}

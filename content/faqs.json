@@ -1,0 +1,95 @@
+[
+    {
+        "group": "General consultancy",
+        "faqs": [
+            {
+                "q": "What services does Nexbridge Solutions offer?",
+                "a": "We offer education and study abroad, immigration and visa, business and corporate, tax and legal documentation, travel and tourism, and language and test preparation services."
+            },
+            {
+                "q": "How do I book a consultation?",
+                "a": "Use the Book a Consultation page to choose a service and preferred time, or send us an inquiry through any service page. Our team will confirm with you."
+            },
+            {
+                "q": "Can consultations be held online?",
+                "a": "Yes. We offer consultations in our office, by phone, by WhatsApp call or online."
+            },
+            {
+                "q": "Do you guarantee results?",
+                "a": "No honest consultant can guarantee an admission, visa or scholarship, because those decisions belong to universities and authorities. We guarantee careful, transparent work on your case."
+            }
+        ]
+    },
+    {
+        "group": "Study abroad",
+        "faqs": [
+            {
+                "q": "Which country is best for me?",
+                "a": "It depends on your field, budget, academic profile and long-term plans. Our counselors compare options with you in your first consultation."
+            },
+            {
+                "q": "When should I start my application?",
+                "a": "Ideally 9 to 12 months before your intended intake, to leave time for tests, applications, scholarships and the visa."
+            },
+            {
+                "q": "Can I study abroad without IELTS?",
+                "a": "Some universities accept other English tests or evidence such as English-medium education. We check your options."
+            },
+            {
+                "q": "Do you help with scholarships?",
+                "a": "Yes. We identify scholarships you are eligible for and help you prepare strong applications."
+            }
+        ]
+    },
+    {
+        "group": "Visas",
+        "faqs": [
+            {
+                "q": "Can you help after a visa refusal?",
+                "a": "Yes. We review the refusal letter and your previous application, and advise whether and how to reapply."
+            },
+            {
+                "q": "Are embassy fees included in your service?",
+                "a": "No. Embassy, visa centre and government fees are paid separately by the applicant."
+            },
+            {
+                "q": "How long does a visa take?",
+                "a": "Processing times vary by country, visa type and season. We advise you on current timelines when you apply."
+            }
+        ]
+    },
+    {
+        "group": "Business and tax",
+        "faqs": [
+            {
+                "q": "Do freelancers need to file tax returns?",
+                "a": "Yes. Freelancers with taxable income should register for NTN and file annual returns."
+            },
+            {
+                "q": "What is the difference between a company and a firm?",
+                "a": "A company is a separate legal entity registered with SECP. A firm is a partnership registered with the provincial Registrar of Firms."
+            },
+            {
+                "q": "Can overseas Pakistanis register a business in Pakistan?",
+                "a": "In many cases, yes. Requirements depend on the business structure and your residency status."
+            }
+        ]
+    },
+    {
+        "group": "Travel",
+        "faqs": [
+            {
+                "q": "Do you arrange Umrah packages?",
+                "a": "Yes. We help with Umrah visa guidance, flights, hotels and transport through authorized operators."
+            },
+            {
+                "q": "Can you help with a tourist visa and the trip together?",
+                "a": "Yes. Our visa and travel teams work together so your itinerary and visa application match."
+            },
+            {
+                "q": "Is travel insurance required?",
+                "a": "It is mandatory for some visas, such as Schengen visas, and strongly recommended for all international travel."
+            }
+        ]
+    }
+]

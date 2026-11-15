@@ -5,21 +5,21 @@ Run from anywhere:  python build/build.py
 import hashlib
 import html
 import json
+import re
 import shutil
+import sys
 from datetime import date
 from pathlib import Path
 from urllib.parse import quote_plus
 
-from content_services import CATEGORIES
-from content_destinations import DESTINATIONS, OTHER_DESTINATIONS
-from content_site import (SITE, TEAM, ABOUT, WHY_US, PROCESS, FAQ_GROUPS,
-                          ARTICLES, INSIGHT_CATEGORIES)
-import images
+from content import (SITE, HOME, TEAM, ABOUT, WHY_US, PROCESS, FAQ_GROUPS, ARTICLES, INSIGHT_CATEGORIES,
+                     CATEGORIES, DESTINATIONS, OTHER_DESTINATIONS, STORIES, STORY_TYPES, PARTNERS,
+                     PARTNER_TYPES, GALLERY, ContentError)
 
 ROOT = Path(__file__).resolve().parent.parent
 GENERATED_DIRS = ["about", "services", "study-abroad", "destinations", "business-tax-consultancy",
                   "partners", "success-stories", "insights", "faqs", "contact", "book-consultation",
-                  "thank-you", "privacy-policy", "terms"]
+                  "thank-you", "privacy-policy", "terms", "gallery"]
 SITEMAP = []
 
 
@@ -30,12 +30,16 @@ def e(text):
 def asset_version():
     h = hashlib.md5()
     for p in ["css/style.css", "js/script.js"]:
-        h.update((ROOT / p).read_bytes())
+        h.update((ROOT / p).read_bytes().replace(b"\r\n", b"\n"))
     return h.hexdigest()[:8]
 
 
 VER = asset_version()
 CAT_BY_SLUG = {c["slug"]: c for c in CATEGORIES}
+N_SERVICES = sum(len(c["services"]) for c in CATEGORIES)
+for _required in ("education-study-abroad", "business-corporate", "tax-legal", "immigration-visa", "travel-tourism", "language-test-preparation"):
+    if _required not in CAT_BY_SLUG or not CAT_BY_SLUG[_required]["services"]:
+        raise ContentError(f"services.json: the category '{_required}' must exist and contain at least one service")
 DEST_BY_SLUG = {d["slug"]: d for d in DESTINATIONS}
 
 
@@ -51,7 +55,62 @@ def dest_url(d):
     return f"/study-abroad/{d['slug']}/"
 
 
+NUMBER_WORDS = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve",
+                "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen", "Twenty"]
+
+
+def num_word(n):
+    return NUMBER_WORDS[n] if n < len(NUMBER_WORDS) else str(n)
+
+
+def join_words(words):
+    words = list(words)
+    return words[0] if len(words) == 1 else ", ".join(words[:-1]) + " and " + words[-1] if words else ""
+
+
+def highlight(t):
+    """Escape a heading; text wrapped in *asterisks* gets the brand gradient."""
+    return re.sub(r"\*([^*]+)\*", r'<span class="grad">\1</span>', e(t))
+
+
+def inline(t):
+    """Escape text and apply **bold** and [link](https://... or /path)."""
+    t = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", e(t))
+
+    def link(m):
+        href = html.unescape(m.group(2))
+        ext = ' target="_blank" rel="noopener"' if href.startswith("http") else ""
+        return f'<a href="{e(href)}"{ext}>{m.group(1)}</a>'
+    return re.sub(r"\[([^\]]+)\]\(((?:https?://|/)[^\s)]*)\)", link, t)
+
+
+def render_body(text):
+    """Render the article format: blank lines between blocks, '## ' headings, '- ' bullets, '1. ' numbered lists."""
+    out = []
+    for block in re.split(r"\n\s*\n", text.replace("\r\n", "\n").strip()):
+        lines = [ln.strip() for ln in block.split("\n") if ln.strip()]
+        if not lines:
+            continue
+        if lines[0].startswith("### "):
+            out.append(f"<h3>{inline(lines[0][4:])}</h3>")
+            lines = lines[1:]
+        elif lines[0].startswith("#"):
+            out.append(f"<h2>{inline(lines[0].lstrip('#').strip())}</h2>")
+            lines = lines[1:]
+        if not lines:
+            continue
+        if all(ln[:2] in ("- ", "* ") for ln in lines):
+            out.append("<ul>" + "".join(f"<li>{inline(ln[2:])}</li>" for ln in lines) + "</ul>")
+        elif all(re.match(r"^\d+[.)] ", ln) for ln in lines):
+            out.append("<ol>" + "".join("<li>" + inline(re.sub(r"^\d+[.)] ", "", ln)) + "</li>" for ln in lines) + "</ol>")
+        else:
+            out.append("<p>" + "<br>".join(inline(ln) for ln in lines) + "</p>")
+    return "".join(out)
+
+
 def flag(code, w=40, cls="flag"):
+    if not code or not (ROOT / "assets/img/flags" / f"{code}.webp").exists():
+        return f'<span class="{cls} flag-none" style="width:{w}px;height:{int(w*0.75)}px">{icon("globe")}</span>'
     src = f"/assets/img/flags/{code}{'-lg' if w > 64 else ''}.webp"
     return (f'<img class="{cls}" src="{src}" width="{w}" height="{int(w*0.75)}" '
             f'alt="" loading="lazy" decoding="async">')
@@ -119,7 +178,8 @@ def nav_items():
     return [
         {"label": "Home", "href": "/"},
         {"label": "About Us", "href": "/about/", "menu": [("", "", [("About Nexbridge", "/about/"), ("Our Team", "/about/team/"),
-                                                                    ("Success Stories", "/success-stories/"), ("Knowledge Center", "/insights/"), ("FAQs", "/faqs/")])]},
+                                                                    ("Success Stories", "/success-stories/"), ("Knowledge Center", "/insights/")] +
+                                                                   ([("Gallery", "/gallery/")] if GALLERY else []) + [("FAQs", "/faqs/")])]},
         {"label": "Consultancy Services", "href": "/services/", "mega": True, "menu": services_cols},
         {"label": "Study Abroad", "href": "/study-abroad/", "menu": [("", "", [("Study abroad overview", "/study-abroad/")] +
                                                                           [(s["name"], svc_url(edu, s)) for s in edu["services"][:8]] +
@@ -235,7 +295,7 @@ def footer():
     edu = CAT_BY_SLUG["education-study-abroad"]
     services_links = [
         ("Study Abroad", "/study-abroad/"),
-        ("Business Advisory", svc_url(CAT_BY_SLUG["business-corporate"], CAT_BY_SLUG["business-corporate"]["services"][0])),
+        ("Business Advisory", cat_url(CAT_BY_SLUG["business-corporate"])),
         ("Tax Consultancy", cat_url(CAT_BY_SLUG["tax-legal"])),
         ("Visa Consultancy", cat_url(CAT_BY_SLUG["immigration-visa"])),
         ("Travel & Tourism", cat_url(CAT_BY_SLUG["travel-tourism"])),
@@ -274,7 +334,7 @@ def footer():
       <div>
         <h2 class="footer-head">Quick Links</h2>
         <ul><li><a href="/">Home</a></li><li><a href="/about/">About Us</a></li><li><a href="/about/team/">Our Team</a></li>
-        <li><a href="/success-stories/">Success Stories</a></li><li><a href="/insights/">Knowledge Center</a></li><li><a href="/faqs/">FAQs</a></li><li><a href="/contact/">Contact Us</a></li></ul>
+        <li><a href="/success-stories/">Success Stories</a></li><li><a href="/insights/">Knowledge Center</a></li>{'<li><a href="/gallery/">Gallery</a></li>' if GALLERY else ""}<li><a href="/faqs/">FAQs</a></li><li><a href="/contact/">Contact Us</a></li></ul>
       </div>
       <div>
         <h2 class="footer-head">Consultancy Services</h2>
@@ -491,19 +551,40 @@ def dest_card(d):
 
 def team_card(m):
     return f"""<a class="team-card" href="/about/team/{m['slug']}/">
-  <div class="team-photo"><img src="/assets/img/team-{m['photo']}.webp" alt="{e(m['name'])}" width="480" height="600" loading="lazy" decoding="async"></div>
+  <div class="team-photo"><img src="{m['photo'] or '/assets/img/logo.png'}" alt="{e(m['name'])}" width="480" height="600" loading="lazy" decoding="async"></div>
   <div class="team-info"><h3>{e(m["name"])}</h3><span class="role">{e(m["role"])}</span><p>{e(m["summary"])}</p></div>
 </a>"""
 
 
 def article_card(a):
     d = date.fromisoformat(a["date"])
-    return f"""<a class="post-card" href="/insights/{a['slug']}/" data-category="{e(a['category'])}">
-  <span class="post-cat">{e(a["category"])}</span>
+    cover = f'<img class="post-img" src="{a["image"]}" alt="" width="480" height="270" loading="lazy" decoding="async">' if a["image"] else ""
+    return f"""<a class="post-card{' has-img' if cover else ''}" href="/insights/{a['slug']}/" data-category="{e(a['category'])}">
+  {cover}<span class="post-cat">{e(a["category"])}</span>
   <h3>{e(a["title"])}</h3>
   <p>{e(a["excerpt"])}</p>
   <time datetime="{a['date']}">{d.strftime('%d %B %Y').lstrip('0')}</time>
 </a>"""
+
+
+def story_card(s):
+    photo = (f'<img src="{s["photo"]}" alt="" width="56" height="56" loading="lazy" decoding="async">' if s["photo"]
+             else f'<span class="story-initial" aria-hidden="true">{e(s["name"][:1].upper())}</span>')
+    head = f'<h3>{e(s["headline"])}</h3>' if s["headline"] else ""
+    detail = f'<span>{e(s["detail"])}</span>' if s["detail"] else ""
+    return f"""<figure class="story-card">{icon("quote", "icon story-quote")}{head}
+  <blockquote><p>{e(s["text"])}</p></blockquote>
+  <figcaption>{photo}<div><strong>{e(s["name"])}</strong>{detail}</div></figcaption>
+</figure>"""
+
+
+def partner_logo(p):
+    inner = (f'<img src="{p["logo"]}" alt="{e(p["name"])}" loading="lazy" decoding="async">' if p["logo"]
+             else f'<span class="logo-name">{e(p["name"])}</span>')
+    title = e(p["name"] + (f", {p['country']}" if p["country"] else ""))
+    if p["url"]:
+        return f'<a class="partner-logo" href="{e(p["url"])}" target="_blank" rel="noopener" title="{title}">{inner}</a>'
+    return f'<div class="partner-logo" title="{title}">{inner}</div>'
 
 
 def why_grid():
@@ -529,20 +610,20 @@ def build_home():
     hero = f"""<section class="hero">
   <div class="container hero-grid">
     <div class="hero-copy">
-      <span class="eyebrow on-dark">Education · Visa · Business · Tax · Travel</span>
-      <h1>Your journey. <span class="grad">Our expertise.</span> Your future.</h1>
-      <p class="lead">Nexbridge Solutions creates clear pathways between ambition and opportunity. We guide students, families and businesses through study abroad, visas, company and tax registration, travel and language preparation, with professional, transparent advice at every step.</p>
+      {f'<span class="eyebrow on-dark">{e(HOME["hero_eyebrow"])}</span>' if HOME["hero_eyebrow"] else ""}
+      <h1>{highlight(HOME["hero_title"])}</h1>
+      {f'<p class="lead">{e(HOME["hero_lead"])}</p>' if HOME["hero_lead"] else ""}
       <div class="hero-actions">{btn_primary("Explore Our Services", "/services/", "layers")}{btn_light("Book a Consultation", "/book-consultation/", "calendar")}</div>
       <ul class="hero-proof">
-        <li><strong>6</strong><span>consultancy areas</span></li>
-        <li><strong>50</strong><span>specialist services</span></li>
-        <li><strong>13</strong><span>study destinations</span></li>
+        <li><strong>{len(CATEGORIES)}</strong><span>consultancy areas</span></li>
+        <li><strong>{N_SERVICES}</strong><span>specialist services</span></li>
+        <li><strong>{len(DESTINATIONS)}</strong><span>study destinations</span></li>
       </ul>
     </div>
     <div class="hero-visual" aria-hidden="true">
       <div class="hero-orb"></div>
-      <img class="hero-person" src="/assets/img/hero-person.webp" alt="" width="560" height="760" fetchpriority="high">
-      <div class="float-card fc-1">{flag("tr", 24)}{flag("gb", 24)}{flag("de", 24)}{flag("it", 24)}<span>13 study destinations</span></div>
+      {f'<img class="hero-person" src="{HOME["hero_image"]}" alt="" width="560" height="760" fetchpriority="high">' if HOME["hero_image"] else ""}
+      <div class="float-card fc-1">{"".join(flag(d["flag"], 24) for d in DESTINATIONS[:4])}<span>{len(DESTINATIONS)} study destinations</span></div>
       <div class="float-card fc-2">{icon("shield")}<span>Transparent, step-by-step guidance</span></div>
     </div>
   </div>
@@ -552,7 +633,7 @@ def build_home():
     about = f"""<section class="section">
   <div class="container split">
     <div class="split-media">
-      <img src="/assets/img/office.webp" alt="A Nexbridge Solutions adviser in the office" width="640" height="760" loading="lazy" decoding="async">
+      <img src="{HOME["about_image"]}" alt="A Nexbridge Solutions adviser in the office" width="640" height="760" loading="lazy" decoding="async">
       <div class="media-badge">{icon("users")}<span>Advisers who follow your case from first call to final outcome</span></div>
     </div>
     <div class="split-copy">
@@ -564,7 +645,7 @@ def build_home():
         <div><h3>{icon("shield")}Our commitment</h3><p>{e(ABOUT["commitment"])}</p></div>
       </div>
       <h3 class="mini-head">Why choose Nexbridge?</h3>
-      {checklist(["Honest advice built around your goals", "Education, visa, business and tax under one roof", "A clear plan and timeline for every client", "International partnerships with institutions abroad"])}
+      {checklist(HOME["about_points"]) if HOME["about_points"] else ""}
       <a class="btn btn-outline" href="/about/">More about us {icon("arrow")}</a>
     </div>
   </div>
@@ -572,7 +653,7 @@ def build_home():
 """
     services = f"""<section class="section tint">
   <div class="container">
-    {section_head("Our consultancy services", "Expert guidance across six areas", "From your first university application to registering your company, our specialists handle the details so you can focus on your goals.")}
+    {section_head("Our consultancy services", f"Expert guidance across {num_word(len(CATEGORIES)).lower()} areas", "From your first university application to registering your company, our specialists handle the details so you can focus on your goals.")}
     <div class="cat-grid">{"".join(category_card(c) for c in CATEGORIES)}</div>
     <div class="center-row">{btn_primary("View all services", "/services/")}</div>
   </div>
@@ -582,7 +663,7 @@ def build_home():
   <div class="container">
     {section_head("Study abroad destinations", "Where would you like to study?", "Explore universities, costs, scholarships and visa requirements country by country.")}
     <div class="dest-grid-cards">{"".join(dest_card(d) for d in DESTINATIONS[:8])}</div>
-    <div class="center-row">{btn_primary("See all 13 destinations", "/destinations/")}</div>
+    <div class="center-row">{btn_primary(f"See all {len(DESTINATIONS)} destinations", "/destinations/")}</div>
   </div>
 </section>
 """
@@ -600,7 +681,15 @@ def build_home():
   </div>
 </section>
 """
+    featured = sorted(STORIES, key=lambda s: not s["featured"])[:3]
     stories = f"""<section class="section">
+  <div class="container">
+    {section_head("Success stories", "Real results, shared with permission", "Visa approvals, admissions and client stories, published with our clients' consent.")}
+    <div class="story-grid">{"".join(story_card(s) for s in featured)}</div>
+    <div class="center-row">{btn_primary("Read more success stories", "/success-stories/")}</div>
+  </div>
+</section>
+""" if STORIES else f"""<section class="section">
   <div class="container">
     {section_head("Success stories", "Real results, shared with permission", "We publish visa approvals, admissions and client stories only with our clients' consent. Verified stories are being added here.")}
     <div class="story-types">
@@ -613,6 +702,13 @@ def build_home():
 </section>
 """
     partners = f"""<section class="section tint">
+  <div class="container">
+    {section_head("Our partners", "Building partnerships beyond borders", "Led by our Director of Partner Relations, we work with universities, institutions and organizations to create better opportunities for our clients.")}
+    <div class="logo-grid wide">{"".join(partner_logo(p) for p in PARTNERS[:12])}</div>
+    <div class="center-row">{btn_primary("See all partners", "/partners/")}</div>
+  </div>
+</section>
+""" if PARTNERS else f"""<section class="section tint">
   <div class="container">
     {section_head("Our partners", "Building partnerships beyond borders", "Led by our Director of Partner Relations, we work with universities, institutions and organizations to create better opportunities for our clients. Partner logos appear here once authorized.")}
     <div class="partner-types">
@@ -660,7 +756,7 @@ def build_about():
       {"".join(f"<p>{e(p)}</p>" for p in ABOUT["intro"])}
       <p class="pull">{e(SITE["tagline"])}</p>
     </div>
-    <div class="split-media"><img src="/assets/img/office.webp" alt="A Nexbridge Solutions adviser in the office" width="640" height="760" loading="lazy" decoding="async"></div>
+    <div class="split-media"><img src="{HOME["about_image"]}" alt="A Nexbridge Solutions adviser in the office" width="640" height="760" loading="lazy" decoding="async"></div>
   </div>
 </section>
 <section class="section tint">
@@ -679,7 +775,7 @@ def build_about():
 </section>
 <section class="section tint">
   <div class="container">
-    {section_head("Our expertise", "Six areas of specialist consultancy")}
+    {section_head("Our expertise", f"{num_word(len(CATEGORIES))} areas of specialist consultancy")}
     <div class="cat-grid">{"".join(category_card(c) for c in CATEGORIES)}</div>
   </div>
 </section>
@@ -716,7 +812,7 @@ def build_team():
         others = "".join(team_card(o) for o in TEAM if o is not m)
         body = f"""<section class="profile-hero">
   <div class="container profile-grid">
-    <div class="profile-photo"><img src="/assets/img/team-{m['photo']}.webp" alt="{e(m['name'])}" width="480" height="600"></div>
+    <div class="profile-photo"><img src="{m['photo'] or '/assets/img/logo.png'}" alt="{e(m['name'])}" width="480" height="600"></div>
     <div class="profile-copy">{crumb_html}<span class="eyebrow on-dark">Nexbridge leadership</span><h1>{e(m["name"])}</h1><span class="role-pill">{e(m["role"])}</span><p class="lead">{e(m["summary"])}</p></div>
   </div>
 </section>
@@ -724,12 +820,12 @@ def build_team():
 <section class="section tint"><div class="container">{section_head("Our team", "Meet the rest of the team")}<div class="team-grid three">{others}</div></div></section>
 """
         ld = [bc, {"@context": "https://schema.org", "@type": "Person", "name": m["name"], "jobTitle": m["role"],
-                   "worksFor": {"@type": "Organization", "name": SITE["name"]}, "image": f"{SITE['url']}/assets/img/team-{m['photo']}.webp"}]
+                   "worksFor": {"@type": "Organization", "name": SITE["name"]}, **({"image": SITE['url'] + m['photo']} if m['photo'] else {})}]
         write_page(f"/about/team/{m['slug']}/", f"{m['name']}, {m['role']}", f"{m['name']} is {m['role']} at Nexbridge Solutions. {m['summary']}", body, ld, "0.5")
 
 
 def build_services_hub():
-    hero, bc = page_hero("Consultancy Services", "Fifty specialist services across education, immigration, business, tax, travel and language preparation.",
+    hero, bc = page_hero("Consultancy Services", f"{N_SERVICES} specialist services across education, immigration, business, tax, travel and language preparation.",
                          [("Consultancy Services", "/services/")], "What we do",
                          btn_primary("Book a Consultation", "/book-consultation/", "calendar") + btn_light("Ask a question", "#inquiry", "send"))
     jump = "".join(f'<a href="#{c["slug"]}">{icon(c["icon"])}{e(c["short_name"])}</a>' for c in CATEGORIES)
@@ -841,7 +937,7 @@ def build_study_abroad():
                          [("Study Abroad", "/study-abroad/")], "Education & study abroad",
                          btn_primary("Book a Consultation", "/book-consultation/?interest=Study+Abroad+Counseling", "calendar") + btn_light("Explore destinations", "#destinations", "globe"),
                          aside=f'<div class="hero-flags">{"".join(flag(d["flag"], 40) for d in DESTINATIONS)}</div>')
-    other = ", ".join(OTHER_DESTINATIONS[:-1]) + " and " + OTHER_DESTINATIONS[-1]
+    other = join_words(OTHER_DESTINATIONS)
     svc_links = "".join(f'<li><a href="{svc_url(edu, s)}"><strong>{e(s["name"])}</strong><span>{e(s["short"])}</span></a></li>' for s in edu["services"])
     body = f"""<section class="section">
   <div class="container narrow center-text"><p class="big-text">{e(edu["intro"])}</p></div>
@@ -850,23 +946,23 @@ def build_study_abroad():
   <div class="container">
     {section_head("Destinations", "Country-wise study destinations", "Select a country to see its education system, programs, requirements, costs, scholarships and visa process.")}
     <div class="dest-grid-cards">{"".join(dest_card(d) for d in DESTINATIONS)}</div>
-    <div class="other-dest"><h3>Other available destinations</h3><p>We also guide students applying to {e(other)}. <a href="/book-consultation/?interest=Other+study+destination">Ask us about another country</a>.</p></div>
+    <div class="other-dest"><h3>Other available destinations</h3><p>We also guide students applying to {e(other or "other countries")}. <a href="/book-consultation/?interest=Other+study+destination">Ask us about another country</a>.</p></div>
   </div>
 </section>
 <section class="section">
   <div class="container">
-    {section_head("Education services", "Support at every stage", "Thirteen services that cover your whole journey, from first counseling session to life after arrival.")}
+    {section_head("Education services", "Support at every stage", f"{num_word(len(edu['services']))} services that cover your whole journey, from first counseling session to life after arrival.")}
     <ul class="svc-list">{svc_links}</ul>
   </div>
 </section>
 <section class="section tint"><div class="container narrow">{section_head("How it works", "Your study abroad journey")}{steps(edu["process"])}</div></section>
 """
-    write_page("/study-abroad/", "Study Abroad", "Study abroad with Nexbridge Solutions: university selection, admissions, scholarships and student visas for Türkiye, the UK, Germany, Italy and 9 more destinations.",
+    write_page("/study-abroad/", "Study Abroad", f"Study abroad with Nexbridge Solutions: university selection, admissions, scholarships and student visas for {', '.join(d['name'] for d in DESTINATIONS[:4])} and {max(len(DESTINATIONS) - 4, 0)} more destinations.",
                hero + body + consult_section("Study Abroad Counseling"), [bc], "0.9")
 
 
 def build_destinations_index():
-    hero, bc = page_hero("Our Destinations", "Thirteen countries, one team to guide your application from shortlist to arrival.",
+    hero, bc = page_hero("Our Destinations", f"{num_word(len(DESTINATIONS))} countries, one team to guide your application from shortlist to arrival.",
                          [("Our Destinations", "/destinations/")], "Study destinations",
                          btn_primary("Book a Consultation", "/book-consultation/", "calendar"))
     other = "".join(f"<li>{e(o[0].upper() + o[1:])}</li>" for o in OTHER_DESTINATIONS)
@@ -874,14 +970,14 @@ def build_destinations_index():
   <div class="dest-grid-cards">{"".join(dest_card(d) for d in DESTINATIONS)}</div>
   <div class="other-dest"><h3>Other available destinations</h3><ul class="pill-list">{other}</ul><p><a href="/book-consultation/?interest=Other+study+destination">Ask about another destination {icon("arrow")}</a></p></div>
 </div></section>"""
-    write_page("/destinations/", "Our Destinations", "Study destinations supported by Nexbridge Solutions: Türkiye, United Kingdom, Germany, Italy, Spain, France, Hungary, Poland, Malaysia, China, Australia, Canada and the USA.",
+    write_page("/destinations/", "Our Destinations", f"Study destinations supported by Nexbridge Solutions: {join_words([d['name'] for d in DESTINATIONS])}.",
                hero + body + cta_band("Not sure which country is right for you?", "Our counselors compare destinations for your profile and budget."), [bc], "0.8")
 
 
 def build_destination(d):
     trail = [("Study Abroad", "/study-abroad/"), (d["name"], dest_url(d))]
     interest = quote_plus(f"Study in {d['name']}")
-    aside = (f'<div class="dest-hero-media"><img src="/assets/img/{d["image"]}" alt="Studying in {e(d["name"])}" width="520" height="560"></div>'
+    aside = (f'<div class="dest-hero-media"><img src="{d["image"]}" alt="Studying in {e(d["name"])}" width="520" height="560"></div>'
              if d.get("image") else f'<div class="dest-hero-flag">{flag(d["flag"], 160, "flag flag-xl")}</div>')
     hero, bc = page_hero(f"Study in {d['name']}", d["tagline"], trail, "Study destination",
                          btn_primary("Apply Now", f"/book-consultation/?interest={interest}", "send") + btn_light("Book a Consultation", f"/book-consultation/?interest={interest}", "calendar"),
@@ -937,13 +1033,11 @@ def build_partners():
     hero, bc = page_hero("Our Partners", "We build long-term partnerships that open doors to quality education, professional growth and international opportunity.",
                          [("Our Partners", "/partners/")], "Partnerships",
                          btn_primary("Become a partner", "#inquiry", "handshake"))
-    types = [
-        ("cap", "Universities", "Universities abroad that welcome our students and work with us on admissions, scholarships and student support."),
-        ("book", "Educational institutions", "Colleges, language schools and pathway providers that help students prepare for and progress in their studies."),
-        ("building", "Corporate partners", "Businesses and service providers we work with to deliver travel, accommodation, insurance and corporate services."),
-        ("globe", "International organizations", "Organizations that share our commitment to education, mobility and opportunity."),
-    ]
-    cards = "".join(f'<div class="partner-card">{icon(i, "icon icon-lg")}<h2>{e(t)}</h2><p>{e(d)}</p><div class="logo-slot">Authorized partner logos will appear here</div></div>' for i, t, d in types)
+    def group(kind, i, t, d):
+        mine = [p for p in PARTNERS if p["type"] == kind]
+        logos = f'<div class="logo-grid">{"".join(partner_logo(p) for p in mine)}</div>' if mine else '<div class="logo-slot">Authorized partner logos will appear here</div>'
+        return f'<div class="partner-card{" has-logos" if mine else ""}">{icon(i, "icon icon-lg")}<h2>{e(t)}</h2><p>{e(d)}</p>{logos}</div>'
+    cards = "".join(group(k, i, t, d) for k, i, t, d in PARTNER_TYPES)
     body = f"""<section class="section"><div class="container narrow center-text"><p class="big-text">Our partner relations team represents Nexbridge internationally, building strategic relationships with universities, institutions, organizations and global partners. We display partner names and logos only with their authorization.</p></div>
 <div class="container"><div class="partner-grid">{cards}</div></div></section>
 {consult_section("Not sure yet", "Partner with Nexbridge Solutions", "Universities, institutions and organizations interested in working with us can reach our partner relations team here.")}"""
@@ -955,12 +1049,13 @@ def build_success():
     hero, bc = page_hero("Success Stories", "Visa approvals, admissions and client achievements, shared with our clients' permission.",
                          [("Success Stories", "/success-stories/")], "Results",
                          btn_primary("Share your story", "#inquiry", "quote"))
-    groups = [("visa", "passport", "Visa success stories", "Study, visit and business visa approvals."),
-              ("admissions", "cap", "Admission success stories", "Offers and enrolments at universities abroad."),
-              ("testimonials", "quote", "Client testimonials", "Feedback from students, families and business clients."),
-              ("achievements", "trophy", "Achievements & case studies", "Scholarships won, companies registered and milestones reached.")]
-    blocks = "".join(f"""<section class="story-group" id="{a}"><div class="story-group-head">{icon(i, "icon icon-lg")}<div><h2>{e(t)}</h2><p>{e(d)}</p></div></div>
-<div class="gallery-empty">{icon("calendar")}<p>Verified stories are being collected with written consent from our clients and will be published here.</p></div></section>""" for a, i, t, d in groups)
+    def group(a, i, t, d):
+        mine = [s for s in STORIES if s["type"] == a]
+        inner = (f'<div class="story-grid">{"".join(story_card(s) for s in mine)}</div>' if mine else
+                 f'<div class="gallery-empty">{icon("calendar")}<p>Verified stories are being collected with written consent from our clients and will be published here.</p></div>')
+        return f"""<section class="story-group" id="{a}"><div class="story-group-head">{icon(i, "icon icon-lg")}<div><h2>{e(t)}</h2><p>{e(d)}</p></div></div>{inner}</section>"""
+    order = sorted(STORY_TYPES, key=lambda g: not any(s["type"] == g[0] for s in STORIES))
+    blocks = "".join(group(*g) for g in order)
     body = f"""<section class="section"><div class="container">{blocks}</div></section>
 {consult_section("Not sure yet", "Are you a Nexbridge client?", "We would love to share your journey. Tell us about your visa, admission or business success, and we will contact you for your consent before publishing anything.")}"""
     write_page("/success-stories/", "Success Stories", "Visa approvals, university admissions, client testimonials and achievements from Nexbridge Solutions clients.", hero + body, [bc], "0.6")
@@ -970,7 +1065,8 @@ def build_insights():
     hero, bc = page_hero("Knowledge Center", "Study abroad guides, visa updates, scholarship information, business advice, tax updates and travel guides.",
                          [("Knowledge Center", "/insights/")], "Latest updates & insights")
     chips = '<button class="chip active" type="button" data-filter="all">All</button>' + "".join(
-        f'<button class="chip" type="button" data-filter="{e(c)}">{e(c)}</button>' for c in INSIGHT_CATEGORIES)
+        f'<button class="chip" type="button" data-filter="{e(c)}">{e(c)}</button>'
+        for c in INSIGHT_CATEGORIES + sorted({a["category"] for a in ARTICLES} - set(INSIGHT_CATEGORIES)))
     posts = sorted(ARTICLES, key=lambda x: x["date"], reverse=True)
     body = f"""<section class="section"><div class="container">
   <div class="chips" role="group" aria-label="Filter articles">{chips}</div>
@@ -982,14 +1078,8 @@ def build_insights():
     for a in posts:
         d = date.fromisoformat(a["date"])
         crumb_html, bc = crumbs([("Knowledge Center", "/insights/"), (a["title"], f"/insights/{a['slug']}/")])
-        parts = []
-        for kind, val in a["body"]:
-            if kind == "p":
-                parts.append(f"<p>{e(val)}</p>")
-            elif kind == "h2":
-                parts.append(f"<h2>{e(val)}</h2>")
-            elif kind == "ul":
-                parts.append("<ul>" + "".join(f"<li>{e(x)}</li>" for x in val) + "</ul>")
+        parts = [f'<figure class="article-cover"><img src="{a["image"]}" alt="" width="960" height="540" decoding="async"></figure>'] if a["image"] else []
+        parts.append(render_body(a["body"]))
         more = "".join(article_card(x) for x in posts if x is not a)
         body = f"""<section class="page-hero article-hero"><div class="container narrow">{crumb_html}<span class="eyebrow on-dark">{e(a["category"])}</span><h1>{e(a["title"])}</h1>
 <p class="article-meta"><time datetime="{a['date']}">{d.strftime('%d %B %Y').lstrip('0')}</time> · Nexbridge Solutions</p></div></section>
@@ -1092,6 +1182,24 @@ def build_legal():
     ], "Terms and conditions for using the Nexbridge Solutions website and services.")
 
 
+def build_gallery():
+    if not GALLERY:
+        return
+    hero, bc = page_hero("Gallery", "Moments from our office, events, university visits and client celebrations.",
+                         [("About Us", "/about/"), ("Gallery", "/gallery/")], "Life at Nexbridge")
+    albums = list(dict.fromkeys(g["album"] for g in GALLERY))
+    chips = ""
+    if len(albums) > 1:
+        chips = '<div class="chips" role="group" aria-label="Filter photos"><button class="chip active" type="button" data-filter="all">All</button>' + "".join(
+            f'<button class="chip" type="button" data-filter="{e(a)}">{e(a)}</button>' for a in albums) + "</div>"
+    figs = "".join(f"""<figure class="gallery-item" data-category="{e(g['album'])}"><a href="{g['image']}" target="_blank" rel="noopener">
+<img src="{g['image']}" alt="{e(g['caption'] or g['album'])}" loading="lazy" decoding="async"></a>{f"<figcaption>{e(g['caption'])}</figcaption>" if g['caption'] else ""}</figure>""" for g in GALLERY)
+    body = f"""<section class="section"><div class="container">{chips}<div class="gallery-grid" data-posts>{figs}</div>
+<p class="empty-filter" hidden data-empty>No photos in this album yet.</p></div></section>"""
+    write_page("/gallery/", "Gallery", "Photos from Nexbridge Solutions: our office, events, university visits and client celebrations.",
+               hero + body + cta_band("Start your own journey", "Book a consultation with a Nexbridge adviser."), [bc], "0.5")
+
+
 def build_404():
     body = f"""<section class="section thanks"><div class="container narrow center-text">
   <span class="icon-badge big">{icon("globe")}</span>
@@ -1106,13 +1214,15 @@ def build_sitemap():
     today = date.today().isoformat()
     urls = "".join(f"<url><loc>{SITE['url']}{p}</loc><lastmod>{today}</lastmod><priority>{pr}</priority></url>" for p, pr in SITEMAP)
     (ROOT / "sitemap.xml").write_text(f'<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>\n', encoding="utf-8")
-    (ROOT / "robots.txt").write_text(f"User-agent: *\nDisallow: /api/\nDisallow: /build/\n\nSitemap: {SITE['url']}/sitemap.xml\n", encoding="utf-8")
+    (ROOT / "robots.txt").write_text(f"User-agent: *\nDisallow: /api/\nDisallow: /build/\nDisallow: /admin/\nDisallow: /content/\n\nSitemap: {SITE['url']}/sitemap.xml\n", encoding="utf-8")
 
 
 def main():
     for d in GENERATED_DIRS:
         shutil.rmtree(ROOT / d, ignore_errors=True)
-    images.build_all(ROOT)
+    if "--no-images" not in sys.argv:
+        import images  # needs Pillow; the admin panel's automatic build skips this step
+        images.build_all(ROOT)
     build_home()
     build_about()
     build_team()
@@ -1134,6 +1244,7 @@ def main():
     build_booking()
     build_thanks()
     build_legal()
+    build_gallery()
     build_404()
     build_sitemap()
     print(f"Built {len(SITEMAP) + 2} pages (asset version {VER}).")

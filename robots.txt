@@ -1,5 +1,7 @@
 User-agent: *
 Disallow: /api/
 Disallow: /build/
+Disallow: /admin/
+Disallow: /content/
 
 Sitemap: https://nexbridge-solutions.com/sitemap.xml

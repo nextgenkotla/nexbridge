@@ -12,7 +12,7 @@ Redirect 301 /staff-ashir.html /about/team/ashir-raza/
 Redirect 301 /staff-noman.html /about/team/noman-malik/
 
 # Keep source files, inquiry data and repo internals private
-RedirectMatch 404 ^/(build|\.git|api/data)(/|$)
+RedirectMatch 404 ^/(build|content|\.git|\.github|api/data|admin/lib)(/|$)
 RedirectMatch 404 ^/api/config\.php$
 RedirectMatch 404 \.(py|md|csv)$
 

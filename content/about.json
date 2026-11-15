@@ -1,0 +1,80 @@
+{
+    "intro": [
+        "At Nexbridge Solutions, we are committed to creating clear pathways between ambition and opportunity. Our mission is to provide professional, transparent, and personalized guidance that helps students and clients make informed decisions about their international education, career, travel, and immigration goals.",
+        "With a strong understanding of the evolving global landscape, we focus on delivering practical solutions tailored to each individual's requirements, aspirations, and future objectives. Alongside education and immigration, we support entrepreneurs and businesses with registration, tax and advisory services."
+    ],
+    "vision": "To establish Nexbridge Solutions as a trusted name in international consultancy by setting high standards of professionalism, integrity, and service excellence.",
+    "mission": "To provide professional, transparent, and personalized guidance that helps students and clients make informed decisions about their international education, career, travel, business and immigration goals.",
+    "commitment": "Every journey is unique. Our role is to connect the right people with the right opportunities while building relationships based on trust, transparency, and long-term value.",
+    "values": [
+        {
+            "title": "Integrity",
+            "desc": "We give honest advice, even when it is not what a client hoped to hear."
+        },
+        {
+            "title": "Transparency",
+            "desc": "Clear processes, clear costs and clear communication at every stage."
+        },
+        {
+            "title": "Personal attention",
+            "desc": "Every client is treated as an individual, with guidance built around their goals."
+        },
+        {
+            "title": "Excellence",
+            "desc": "We hold our work to a high professional standard and keep improving it."
+        },
+        {
+            "title": "Long-term relationships",
+            "desc": "We measure success by the trust clients place in us over time."
+        }
+    ],
+    "why_us": [
+        {
+            "title": "Personalized consultation",
+            "desc": "Advice built around your goals, profile and budget, not a one-size-fits-all package.",
+            "icon": "user"
+        },
+        {
+            "title": "Professional guidance",
+            "desc": "Experienced advisers who understand education, visa, business and tax requirements.",
+            "icon": "award"
+        },
+        {
+            "title": "Transparent process",
+            "desc": "You always know the next step, the timeline and what each service involves.",
+            "icon": "eye"
+        },
+        {
+            "title": "Comprehensive support",
+            "desc": "Education, visa, business, tax, travel and language services under one roof.",
+            "icon": "layers"
+        },
+        {
+            "title": "Reliable and client-focused",
+            "desc": "We stay accountable from your first consultation to the final outcome.",
+            "icon": "shield"
+        }
+    ],
+    "process": [
+        {
+            "title": "Consultation",
+            "desc": "We listen to your goals and explain your options."
+        },
+        {
+            "title": "Assessment",
+            "desc": "We review your profile and documents honestly."
+        },
+        {
+            "title": "Planning",
+            "desc": "We agree a clear plan, timeline and checklist."
+        },
+        {
+            "title": "Application & processing",
+            "desc": "We prepare and submit applications and registrations."
+        },
+        {
+            "title": "Follow-up",
+            "desc": "We track progress and support you after the decision."
+        }
+    ]
+}

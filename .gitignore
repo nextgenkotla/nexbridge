@@ -3,4 +3,6 @@ Thumbs.db
 node_modules/
 .env
 __pycache__/
-api/data/*.csv
+# Private server data: form submissions and admin panel settings (never commit)
+api/data/*
+!api/data/.htaccess

@@ -1,0 +1,49 @@
+[
+    {
+        "slug": "syed-ali-uraiz",
+        "name": "Syed Ali Uraiz",
+        "role": "Founder & Managing Director",
+        "photo": "/assets/img/team-uraiz.webp",
+        "summary": "Building a student-focused organization defined by professionalism, integrity and personalized service.",
+        "bio": [
+            "At Nexbridge Solutions, we believe that the right guidance and the right opportunity can transform a student's aspirations into a successful international future. As the Managing Director, my vision is to build an organization defined by professionalism, integrity, and personalized service, one that empowers students to make informed decisions and confidently pursue quality education abroad.",
+            "Over the years, our commitment has been to create a trusted and student-focused experience at every stage of the journey. From selecting the right university and academic program to securing admission and navigating the visa process, our team is dedicated to delivering strategic guidance and reliable support tailored to each student's goals. At Nexbridge Solutions, we do not simply facilitate international education; we build pathways that connect ambition with opportunity and help our students move towards a brighter, more successful future."
+        ]
+    },
+    {
+        "slug": "aqsa-ejaz",
+        "name": "Dr. Aqsa Ejaz",
+        "role": "Director Partner Relations",
+        "photo": "/assets/img/team-aqsa.webp",
+        "summary": "Leading international partnerships with universities, institutions and organizations worldwide.",
+        "bio": [
+            "As Director of Partner Relations at Nexbridge, I represent the organization at an international level, building and leading strategic relationships with universities, institutions, organizations, and global partners.",
+            "My role is centered on taking Nexbridge beyond borders by establishing strong international collaborations, developing long-term partnerships, and positioning the organization as a trusted and recognized name in the global education and opportunities market.",
+            "I work closely with international partners to create meaningful pathways and high-value opportunities for the students we serve.",
+            "My vision is to build partnerships that go beyond formal collaborations: partnerships that open doors to quality education, professional growth, international exposure, and better opportunities for the next generation.",
+            "Through strategic relationship-building, international representation, and a commitment to mutual growth, I aim to strengthen Nexbridge Solutions' global presence while ensuring that every partnership ultimately creates greater value and better opportunities for our students and partners."
+        ]
+    },
+    {
+        "slug": "ashir-raza",
+        "name": "Ashir Raza",
+        "role": "Business Development Director",
+        "photo": "/assets/img/team-ashir.webp",
+        "summary": "Creating clear, reliable pathways for students to access world-class education.",
+        "bio": [
+            "Our vision at Nexbridge Solutions is to create clear and reliable pathways for students to access world-class education and turn their aspirations of studying abroad into meaningful opportunities. We are committed to building a trusted platform where students receive the right guidance, personalized solutions, and confidence to take the next step toward a successful international future.",
+            "At Nexbridge Solutions, we believe every student's journey is unique. Our vision is to empower students through professional counselling, strategic guidance, and end-to-end support, from selecting the right institution and program to securing admission and navigating the visa process. By combining expertise, integrity, and personalized attention, we strive to connect ambition with opportunity and help shape a brighter future for every student we work with."
+        ]
+    },
+    {
+        "slug": "noman-malik",
+        "name": "Noman Malik",
+        "role": "Editor",
+        "photo": "/assets/img/team-noman.webp",
+        "summary": "Upholding accuracy, clarity and professionalism across every Nexbridge message.",
+        "bio": [
+            "As the Editor at Nexbridge Solutions, my focus is on maintaining the highest standards of accuracy, clarity, and professionalism across all forms of communication. I ensure that every piece of content reflects our brand identity, communicates our message with precision, and delivers meaningful value to our audience.",
+            "From website content and digital platforms to marketing communications and corporate materials, I oversee content with a keen eye for quality, consistency, and engagement. My objective is to ensure that every message published by Nexbridge Solutions is not only professionally presented but also strengthens our credibility, builds trust, and represents the organization with excellence."
+        ]
+    }
+]
