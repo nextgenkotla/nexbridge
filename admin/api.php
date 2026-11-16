@@ -84,17 +84,18 @@ try {
             if ($method !== 'POST') fail('Method not allowed', 405);
             if (nx_is_configured()) fail('The admin panel is already set up.', 409);
             if (nx_throttled()) fail('Too many attempts. Try again in 15 minutes.', 429);
-            $token = str_in('token', 300);
+            $key = strtoupper(str_replace(' ', '', str_in('setup_key', 60)));
             $user = str_in('username', 60);
             $pass = (string) (input()['password'] ?? '');
+            $hash = include __DIR__ . '/lib/setup-key.php';
+            if (!is_string($hash) || !password_verify($key, $hash)) {
+                nx_record_fail();
+                fail('That setup key is not correct.', 403);
+            }
             if (!valid_username($user)) fail('Choose a username of 3 to 60 letters, numbers, dots or dashes.');
             if ($msg = valid_password($pass)) fail($msg);
-            if ($token === '') fail('Paste the GitHub access token.');
-            if ($msg = gh_check_token($token)) {
-                nx_record_fail();
-                fail($msg);
-            }
-            nx_save_config(['github_token' => $token, 'users' => [$user => password_hash($pass, PASSWORD_DEFAULT)], 'notify' => ['notify_email' => '', 'from_email' => '']]);
+            nx_clear_fails();
+            nx_save_config(['users' => [$user => password_hash($pass, PASSWORD_DEFAULT)], 'notify' => ['notify_email' => '', 'from_email' => '']]);
             session_regenerate_id(true);
             $_SESSION['user'] = $user;
             out(['ok' => true, 'user' => $user]);
@@ -135,27 +136,45 @@ try {
                 unset($c['file']);
                 $cols[$key] = $c;
             }
-            out(['collections' => $cols, 'flags' => nx_flags(), 'icons' => NX_ICONS, 'repo' => NX_REPO, 'branch' => NX_BRANCH]);
+            out(['collections' => $cols, 'flags' => nx_flags(), 'icons' => NX_ICONS]);
 
         case 'load':
             require_user();
             $cols = nx_collections();
             $key = $_GET['c'] ?? '';
             if (!isset($cols[$key])) fail('Unknown section', 404);
-            $path = 'content/' . $cols[$key]['file'];
-            try {
-                $file = gh_get_file($path);
-                $source = 'github';
-            } catch (GitHubError $e) {
-                $local = NX_ROOT . '/' . $path;
-                if (!is_file($local)) throw $e;
-                $content = (string) file_get_contents($local);
-                $file = ['content' => $content, 'sha' => sha1('blob ' . strlen($content) . "\0" . $content)];
-                $source = 'local';
+            $file = nx_read_content($cols[$key]['file']);
+            $data = json_decode($file['raw'], true);
+            if (!is_array($data)) fail('This content file is damaged and could not be read. Restore an earlier version from the history.', 500);
+            out(['data' => $data, 'version' => $file['version']]);
+
+        case 'history':
+            require_user();
+            $cols = nx_collections();
+            $key = $_GET['c'] ?? '';
+            if (!isset($cols[$key])) fail('Unknown section', 404);
+            out(['versions' => nx_history($key)]);
+
+        case 'version':
+            require_user();
+            $cols = nx_collections();
+            $key = $_GET['c'] ?? '';
+            if (!isset($cols[$key])) fail('Unknown section', 404);
+            $raw = nx_history_version($key, (string) ($_GET['id'] ?? ''));
+            $data = $raw === null ? null : json_decode($raw, true);
+            if (!is_array($data)) fail('That version could not be found.', 404);
+            out(['data' => $data]);
+
+        case 'backup':
+            require_user();
+            $all = [];
+            foreach (nx_collections() as $col) {
+                $all[$col['file']] = json_decode(nx_read_content($col['file'])['raw'], true);
             }
-            $data = json_decode($file['content'], true);
-            if (!is_array($data)) fail('This content file is damaged and could not be read.', 500);
-            out(['data' => $data, 'sha' => $file['sha'], 'source' => $source]);
+            header('Content-Type: application/json; charset=utf-8');
+            header('Content-Disposition: attachment; filename="nexbridge-content-' . gmdate('Y-m-d') . '.json"');
+            echo json_encode($all, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            exit;
 
         case 'save':
             if ($method !== 'POST') fail('Method not allowed', 405);
@@ -170,23 +189,18 @@ try {
                 fail($e->getMessage(), 422);
             }
             if ($col['type'] === 'list' && !empty($col['fixed'])) {
-                // Categories can be edited but not added, removed or renamed (their web addresses are fixed).
-                $current = json_decode(gh_get_file('content/' . $col['file'])['content'], true) ?: [];
+                // Categories can be edited but not added, removed or reordered (their web addresses are fixed).
+                $current = json_decode(nx_read_content($col['file'])['raw'], true) ?: [];
                 if (array_column($current, 'slug') !== array_column($clean, 'slug')) {
                     fail('Service categories cannot be added, removed or reordered here.', 422);
                 }
             }
             $json = json_encode($clean, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n";
-            $sha = str_in('sha', 64);
-            try {
-                $res = gh_put_file('content/' . $col['file'], $json, "Admin: update {$col['label']} ({$user})", $sha ?: null);
-            } catch (GitHubError $e) {
-                if (in_array($e->status, [409, 422], true)) {
-                    fail('Someone else saved this section a moment ago. Reload the page to get the latest version, then make your change again.', 409);
-                }
-                throw $e;
+            $version = nx_write_content($key, $col['file'], $json, str_in('version', 64), $user);
+            if ($version === null) {
+                fail('Someone else saved this section a moment ago. Reload the page to get the latest version, then make your change again.', 409);
             }
-            out(['ok' => true, 'sha' => $res['sha'], 'data' => $clean]);
+            out(['ok' => true, 'version' => $version, 'data' => $clean]);
 
         case 'upload':
             if ($method !== 'POST') fail('Method not allowed', 405);
@@ -199,17 +213,11 @@ try {
             if (!$info || !isset($types[$info[2]])) fail('Please upload a JPG, PNG or WebP image.');
             $base = strtolower(preg_replace('/[^A-Za-z0-9]+/', '-', pathinfo(str_in('name', 120), PATHINFO_FILENAME)) ?? '');
             $base = trim(substr($base, 0, 50), '-') ?: 'image';
-            $path = 'assets/uploads/' . gmdate('Y/m') . '/' . $base . '-' . bin2hex(random_bytes(3)) . '.' . $types[$info[2]];
-            gh_put_file($path, $raw, "Admin: upload image {$base} ({$user})", null);
-            out(['ok' => true, 'path' => '/' . $path, 'width' => $info[0], 'height' => $info[1]]);
-
-        case 'build_status':
-            require_user();
-            try {
-                out(['run' => gh_latest_build()]);
-            } catch (GitHubError $e) {
-                out(['run' => null, 'note' => $e->getMessage()]);
-            }
+            $rel = 'uploads/' . gmdate('Y/m') . '/' . $base . '-' . bin2hex(random_bytes(3)) . '.' . $types[$info[2]];
+            $dir = dirname(NX_ROOT . '/' . $rel);
+            if (!is_dir($dir) && !mkdir($dir, 0755, true)) fail('The image folder could not be created on the server.', 500);
+            if (file_put_contents(NX_ROOT . '/' . $rel, $raw) === false) fail('The image could not be saved on the server.', 500);
+            out(['ok' => true, 'path' => '/' . $rel, 'width' => $info[0], 'height' => $info[1]]);
 
         // ------------------------------------------------------------ inquiries
         case 'inquiries':
@@ -269,12 +277,10 @@ try {
         case 'account':
             $me = require_user();
             $cfg = nx_config();
-            $token = $cfg['github_token'] ?? '';
             out([
                 'me' => $me,
                 'users' => array_keys($cfg['users'] ?? []),
                 'notify' => $cfg['notify'] ?? ['notify_email' => '', 'from_email' => ''],
-                'token_hint' => $token ? substr($token, 0, 7) . '…' . substr($token, -4) : '',
                 'mail_available' => function_exists('mail'),
             ]);
 
@@ -312,16 +318,6 @@ try {
             nx_save_config($cfg);
             out(['ok' => true]);
 
-        case 'token':
-            if ($method !== 'POST') fail('Method not allowed', 405);
-            require_user();
-            $token = str_in('token', 300);
-            if ($msg = gh_check_token($token)) fail($msg);
-            $cfg = nx_config();
-            $cfg['github_token'] = $token;
-            nx_save_config($cfg);
-            out(['ok' => true]);
-
         case 'notify':
             if ($method !== 'POST') fail('Method not allowed', 405);
             require_user();
@@ -338,7 +334,7 @@ try {
         default:
             fail('Not found', 404);
     }
-} catch (GitHubError $e) {
-    $hint = $e->status === 401 ? ' The GitHub access token may have expired; replace it under Account.' : '';
-    fail('GitHub: ' . $e->getMessage() . '.' . $hint, 502);
+} catch (Throwable $e) {
+    error_log('Nexbridge admin error: ' . $e->getMessage());
+    fail('Something went wrong on the server. Please try again.', 500);
 }

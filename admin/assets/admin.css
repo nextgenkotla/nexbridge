@@ -207,3 +207,10 @@ input:user-invalid, textarea:user-invalid { border-color: var(--red); }
   .save-status { display: none; }
   .save-bar .btn { flex: 1; justify-content: center; }
 }
+
+/* version history */
+.panel.history { margin-bottom: 18px; }
+.hist-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.hist-list li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 12px; background: var(--bg); border-radius: 9px; flex-wrap: wrap; }
+.hist-list .pill { margin-left: 8px; }
+.page-actions { display: flex; gap: 8px; flex-wrap: wrap; }

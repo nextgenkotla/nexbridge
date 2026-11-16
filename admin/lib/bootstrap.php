@@ -6,16 +6,14 @@ if (!defined('NX_ADMIN')) {
     exit;
 }
 
-const NX_REPO = 'nextgenkotla/nexbridge';
-const NX_BRANCH = 'master';
+const NX_HISTORY_KEEP = 30;           // saved versions kept per section
 const NX_SESSION_IDLE = 7200;          // log out after 2 hours without activity
 const NX_MAX_FAILS = 5;                // failed logins allowed per IP...
 const NX_FAIL_WINDOW = 900;            // ...within 15 minutes
 
-define('NX_ROOT', dirname(__DIR__, 2));
+defined('NX_ROOT') || define('NX_ROOT', dirname(__DIR__, 2));
 define('NX_DATA', NX_ROOT . '/api/data');
 
-require __DIR__ . '/github.php';
 require __DIR__ . '/schema.php';
 
 function nx_secure_headers(): void
@@ -25,7 +23,7 @@ function nx_secure_headers(): void
     header('Referrer-Policy: same-origin');
     header('X-Robots-Tag: noindex, nofollow');
     header('Cache-Control: no-store');
-    header("Content-Security-Policy: default-src 'self'; img-src 'self' data: blob: https://raw.githubusercontent.com; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
+    header("Content-Security-Policy: default-src 'self'; img-src 'self' data: blob:; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
 }
 
 function nx_is_https(): bool
@@ -98,8 +96,94 @@ function nx_save_config(array $cfg): void
 
 function nx_is_configured(): bool
 {
-    $cfg = nx_config();
-    return !empty($cfg['users']) && !empty($cfg['github_token']);
+    return !empty(nx_config()['users']);
+}
+
+// ---------------------------------------------------------------- content storage
+/** Live content is kept in api/data/content/; /content/ in the repository is the starting point. */
+function nx_content_path(string $file, bool $forWrite = false): string
+{
+    $live = nx_data_dir() . '/content/' . $file;
+    if ($forWrite || is_file($live)) {
+        return $live;
+    }
+    return NX_ROOT . '/content/' . $file;
+}
+
+function nx_read_content(string $file): array
+{
+    $raw = (string) @file_get_contents(nx_content_path($file));
+    return ['raw' => $raw, 'version' => sha1($raw)];
+}
+
+/** Saves a section, keeping the previous version in the history. Returns the new version id, or null if someone saved in between. */
+function nx_write_content(string $key, string $file, string $json, string $expectedVersion, string $user): ?string
+{
+    $dir = nx_data_dir() . '/content';
+    if (!is_dir($dir)) {
+        mkdir($dir, 0750, true);
+    }
+    $lock = fopen($dir . '/.lock', 'c');
+    flock($lock, LOCK_EX);
+    try {
+        $current = nx_read_content($file);
+        if ($expectedVersion !== '' && !hash_equals($current['version'], $expectedVersion)) {
+            return null;
+        }
+        $tmp = nx_content_path($file, true) . '.tmp';
+        file_put_contents($tmp, $json);
+        rename($tmp, nx_content_path($file, true));
+        nx_add_history($key, $json, $user);
+        return sha1($json);
+    } finally {
+        flock($lock, LOCK_UN);
+        fclose($lock);
+    }
+}
+
+function nx_history_dir(string $key): string
+{
+    $dir = nx_data_dir() . '/history/' . $key;
+    if (!is_dir($dir)) {
+        mkdir($dir, 0750, true);
+    }
+    return $dir;
+}
+
+function nx_add_history(string $key, string $json, string $user): void
+{
+    $dir = nx_history_dir($key);
+    $name = gmdate('Ymd-His') . '-' . substr(bin2hex(random_bytes(2)), 0, 4) . '-' . preg_replace('/[^A-Za-z0-9._@-]/', '', $user) . '.json';
+    file_put_contents("$dir/$name", $json);
+    $files = glob("$dir/*.json") ?: [];
+    rsort($files);
+    foreach (array_slice($files, NX_HISTORY_KEEP) as $old) {
+        @unlink($old);
+    }
+}
+
+function nx_history(string $key): array
+{
+    $files = glob(nx_history_dir($key) . '/*.json') ?: [];
+    rsort($files);
+    $out = [];
+    foreach ($files as $f) {
+        $base = basename($f, '.json');
+        if (preg_match('/^(\d{8})-(\d{6})-[0-9a-f]{4}-(.*)$/', $base, $m)) {
+            $dt = DateTime::createFromFormat('Ymd His', $m[1] . ' ' . $m[2], new DateTimeZone('UTC'));
+            $out[] = ['id' => $base, 'saved' => $dt ? $dt->format('Y-m-d\TH:i:s\Z') : '', 'user' => $m[3]];
+        }
+    }
+    return $out;
+}
+
+function nx_history_version(string $key, string $id): ?string
+{
+    if (!preg_match('/^\d{8}-\d{6}-[0-9a-f]{4}-[A-Za-z0-9._@-]*$/', $id)) {
+        return null;
+    }
+    $f = nx_history_dir($key) . '/' . $id . '.json';
+    return is_file($f) ? (string) file_get_contents($f) : null;
 }
 
 function nx_read_json(string $name, $default)

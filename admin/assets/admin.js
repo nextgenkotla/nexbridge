@@ -2,7 +2,7 @@
 (function () {
   "use strict";
 
-  var S = { csrf: "", user: null, schema: null, dirty: false, publishTimer: null, savedAt: 0 };
+  var S = { csrf: "", user: null, schema: null, dirty: false };
   var app = document.getElementById("app");
 
   // ------------------------------------------------------------ helpers
@@ -73,7 +73,7 @@
   function pad(n) { return (n < 10 ? "0" : "") + n; }
   function fmtDate(s) {
     if (!s) return "";
-    var d = new Date(s.replace(" UTC", "Z").replace(" ", "T"));
+    var d = new Date(/T/.test(s) ? s : s.replace(" UTC", "Z").replace(" ", "T"));
     if (isNaN(d)) return s;
     return d.toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
   }
@@ -84,7 +84,7 @@
       ext: "M14 4h6v6M20 4l-9 9M18 14v6H4V6h6", up: "M12 19V5M6 11l6-6 6 6", down: "M12 5v14M18 13l-6 6-6-6", trash: "M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13",
       plus: "M12 5v14M5 12h14", menu: "M3 6h18M3 12h18M3 18h18", img: "M4 5h16v14H4zM4 15l4-4 4 4 3-3 5 5M15 9a1 1 0 1 0 0-.01",
       phone: "M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2", mail: "M3 6h18v12H3zM3 7l9 6 9-6",
-      chat: "M4 5h16v11H8l-4 4z", dl: "M12 4v12M6 10l6 6 6-6M4 20h16", check: "M5 12l5 5 9-10"
+      chat: "M4 5h16v11H8l-4 4z", clock: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2", dl: "M12 4v12M6 10l6 6 6-6M4 20h16", check: "M5 12l5 5 9-10"
     };
     var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("viewBox", "0 0 24 24"); svg.setAttribute("class", "i"); svg.setAttribute("aria-hidden", "true");
@@ -92,15 +92,8 @@
     p.setAttribute("d", paths[name] || ""); svg.appendChild(p);
     return svg;
   }
-  function imgSrc(path) { return path; }
-  function rawUrl(path) { return "https://raw.githubusercontent.com/" + S.schema.repo + "/" + S.schema.branch + path; }
   function previewImg(path, cls) {
-    var img = h("img", { class: cls || "", alt: "", src: imgSrc(path), loading: "lazy" });
-    img.addEventListener("error", function once() {
-      img.removeEventListener("error", once);
-      if (S.schema) img.src = rawUrl(path); // newly uploaded images exist on GitHub before they reach the website
-    });
-    return img;
+    return h("img", { class: cls || "", alt: "", src: path, loading: "lazy" });
   }
 
   // ------------------------------------------------------------ routing
@@ -149,32 +142,26 @@
   }
 
   function setupView() {
-    var token = h("input", { type: "password", autocomplete: "off", required: true, spellcheck: "false" });
+    var key = h("input", { type: "text", autocomplete: "off", required: true, spellcheck: "false", placeholder: "XXXXX-XXXXX-XXXXX-XXXXX-XXXXX" });
     var user = h("input", { type: "text", autocomplete: "username", required: true, value: "admin" });
     var pass = h("input", { type: "password", autocomplete: "new-password", required: true, minlength: 10 });
     var pass2 = h("input", { type: "password", autocomplete: "new-password", required: true });
     var err = errBox();
-    var btn = h("button", { class: "btn primary block", type: "submit" }, "Finish setup");
+    var btn = h("button", { class: "btn primary block", type: "submit" }, "Create admin account");
     var form = h("form", { onsubmit: function (e) {
       e.preventDefault();
       if (pass.value !== pass2.value) return showErr(err, "The two passwords do not match.");
-      btn.disabled = true; btn.textContent = "Checking the token…";
-      api("setup", { body: { token: token.value, username: user.value, password: pass.value } }).then(function (r) {
+      btn.disabled = true;
+      api("setup", { body: { setup_key: key.value, username: user.value, password: pass.value } }).then(function (r) {
         S.configured = true; S.user = r.user; render();
-      }).catch(function (e2) { showErr(err, e2.message); btn.disabled = false; btn.textContent = "Finish setup"; });
+      }).catch(function (e2) { showErr(err, e2.message); btn.disabled = false; });
     } },
-      h("ol", { class: "setup-steps" },
-        h("li", null, "Sign in to GitHub as the owner of the ", h("strong", null, "nexbridge"), " repository and open ",
-          h("a", { href: "https://github.com/settings/personal-access-tokens/new", target: "_blank", rel: "noopener" }, "Settings › Developer settings › Fine-grained tokens › Generate new token"), "."),
-        h("li", null, "Repository access: ", h("strong", null, "Only select repositories"), " › nexbridge."),
-        h("li", null, "Permissions: ", h("strong", null, "Contents: Read and write"), " and ", h("strong", null, "Actions: Read-only"), ". Set the expiration as long as you are comfortable with."),
-        h("li", null, "Generate the token, copy it and paste it below. It is stored only on this server.")),
-      field("GitHub access token", token),
+      field("Setup key", key, "The one-time key your web developer gave you."),
       field("Admin username", user),
       field("Admin password", pass, "At least 10 characters."),
       field("Repeat password", pass2),
       err, btn);
-    authShell("Set up the admin panel", "One-time setup. The admin panel saves your edits to the website's GitHub repository, which then rebuilds and publishes the site automatically.", form);
+    authShell("Set up the admin panel", "Create the first admin account. You can add more accounts after logging in.", form);
   }
 
   function loginView() {
@@ -193,7 +180,7 @@
   }
 
   // ------------------------------------------------------------ layout
-  var main, publishBar;
+  var main;
   function layout() {
     clear(app); app.className = "shell";
     var r = route();
@@ -217,11 +204,9 @@
       h("a", { class: "side-brand", href: "#/" }, h("img", { src: "/assets/img/logo-white.png", alt: "Nexbridge Solutions", width: 150 }), h("span", null, "Admin")),
       nav);
     var toggle = h("button", { class: "menu-btn", type: "button", "aria-label": "Menu", onclick: function () { document.body.classList.toggle("side-open"); } }, icon("menu"));
-    publishBar = h("div", { class: "publish-bar", hidden: true });
     main = h("main", { class: "main", id: "main" });
-    add(app, [side, h("div", { class: "content" }, h("header", { class: "topbar" }, toggle, h("span", { class: "who" }, "Signed in as ", h("strong", null, S.user))), publishBar, main)]);
+    add(app, [side, h("div", { class: "content" }, h("header", { class: "topbar" }, toggle, h("span", { class: "who" }, "Signed in as ", h("strong", null, S.user))), main)]);
     document.body.classList.remove("side-open");
-    if (S.publishTimer) showPublishing();
 
     if (r === "/") dashboard();
     else if (r === "/inquiries") inquiries();
@@ -241,45 +226,10 @@
     return h("div", { class: "page-head" }, h("div", null, h("h1", null, title), lead ? h("p", { class: "muted" }, lead) : null), actions ? h("div", { class: "page-actions" }, actions) : null);
   }
 
-  // ------------------------------------------------------------ publishing status
-  function startPublishWatch() {
-    S.savedAt = Date.now();
-    if (S.publishTimer) clearInterval(S.publishTimer);
-    S.publishState = "waiting";
-    showPublishing();
-    S.publishTimer = setInterval(checkPublish, 8000);
-    setTimeout(checkPublish, 4000);
-  }
-  function checkPublish() {
-    api("build_status").then(function (r) {
-      var run = r.run;
-      if (!run) { S.publishState = "unknown"; return finishPublish(); }
-      var started = Date.parse(run.created_at);
-      if (started < S.savedAt - 60000) { if (Date.now() - S.savedAt > 180000) { S.publishState = "unknown"; finishPublish(); } return; }
-      if (run.status !== "completed") { S.publishState = "building"; return showPublishing(); }
-      S.publishState = run.conclusion === "success" ? "done" : "failed";
-      S.publishUrl = run.url;
-      finishPublish();
-    }).catch(function () { S.publishState = "unknown"; finishPublish(); });
-  }
-  function finishPublish() { clearInterval(S.publishTimer); S.publishTimer = null; showPublishing(); }
-  function showPublishing() {
-    if (!publishBar) return;
-    clear(publishBar); publishBar.hidden = false;
-    var st = S.publishState;
-    publishBar.className = "publish-bar " + st;
-    if (st === "waiting" || st === "building") add(publishBar, [h("span", { class: "spinner" }), "Publishing your changes. This usually takes 1 to 2 minutes; you can keep working."]);
-    else if (st === "done") add(publishBar, [icon("check"), "Published. Your changes will be live on the website within a minute (refresh the page to see them). ", closeBtn()]);
-    else if (st === "failed") add(publishBar, ["The website could not be rebuilt from your last change, so the live site was not changed. ",
-      S.publishUrl ? h("a", { href: S.publishUrl, target: "_blank", rel: "noopener" }, "See the details") : null, " or contact your developer. ", closeBtn()]);
-    else add(publishBar, ["Saved. Your changes will appear on the website in a few minutes. ", closeBtn()]);
-  }
-  function closeBtn() { return h("button", { class: "link-btn", type: "button", onclick: function () { publishBar.hidden = true; S.publishState = null; } }, "Dismiss"); }
-
   // ------------------------------------------------------------ dashboard
   function dashboard() {
     var newCount = h("strong", { class: "stat-num" }, "…");
-    add(main, pageHead("Welcome, " + S.user, "Manage the Nexbridge Solutions website. Changes you save are published automatically."));
+    add(main, pageHead("Welcome, " + S.user, "Manage the Nexbridge Solutions website. Changes you save appear on the website straight away."));
     var tiles = h("div", { class: "tiles" },
       h("a", { class: "tile stat", href: "#/inquiries" }, icon("inbox"), newCount, h("span", null, "new inquiries and bookings")));
     Object.keys(S.schema.collections).forEach(function (k) {
@@ -287,11 +237,11 @@
       add(tiles, h("a", { class: "tile", href: "#/edit/" + k }, icon("edit"), h("strong", null, c.label), h("span", null, c.intro || c.group)));
     });
     add(main, tiles);
-    add(main, h("section", { class: "panel help" }, h("h2", null, "How publishing works"),
+    add(main, h("section", { class: "panel help" }, h("h2", null, "How editing works"),
       h("ol", null,
-        h("li", null, "Edit a section and press ", h("strong", null, "Save and publish"), "."),
-        h("li", null, "The website rebuilds itself automatically; a bar at the top shows the progress."),
-        h("li", null, "About two minutes later the change is live. Refresh the website to see it.")),
+        h("li", null, "Choose a section on the left, make your changes and press ", h("strong", null, "Save"), "."),
+        h("li", null, "The change is live immediately. Open the website (or refresh it) to see it."),
+        h("li", null, "Made a mistake? Every section keeps its last 30 saved versions under ", h("strong", null, "History"), ".")),
       h("p", { class: "muted" }, "Form submissions from the website appear under Inquiries & bookings straight away.")));
     api("inquiries").then(function (r) {
       newCount.textContent = r.rows.filter(function (x) { return x.status === "new"; }).length;
@@ -368,17 +318,21 @@
   // ------------------------------------------------------------ content editor
   function editor(key) {
     var col = S.schema.collections[key];
-    var doc = null, sha = "";
+    var doc = null, version = "";
     var form = h("div", { class: "editor" }, h("p", { class: "muted" }, "Loading…"));
-    var saveBtn = h("button", { class: "btn primary", type: "button", onclick: save }, "Save and publish");
+    var saveBtn = h("button", { class: "btn primary", type: "button", onclick: save }, "Save");
     var status = h("span", { class: "save-status" });
     var bar = h("div", { class: "save-bar" }, status, saveBtn);
-    add(main, pageHead(col.label, col.intro), form, bar);
+    var histBox = h("div", { class: "panel history", hidden: true });
+    var actions = [
+      h("button", { class: "btn", type: "button", onclick: toggleHistory }, icon("clock"), "History"),
+      col.view ? h("a", { class: "btn", href: col.view, target: "_blank", rel: "noopener" }, icon("ext"), "View on website") : null];
+    add(main, pageHead(col.label, col.intro, actions), histBox, form, bar);
     S.dirty = false;
     setDirty(false);
 
     api("load", { query: "&c=" + encodeURIComponent(key) }).then(function (r) {
-      doc = r.data; sha = r.sha; draw();
+      doc = r.data; version = r.version; draw();
     }).catch(function (e) { clear(form); add(form, h("p", { class: "form-error" }, e.message)); });
 
     function draw() {
@@ -400,13 +354,40 @@
       var bad = form.querySelector(":invalid");
       if (bad) { openParents(bad); bad.reportValidity(); return; }
       saveBtn.disabled = true; saveBtn.textContent = "Saving…";
-      api("save", { body: { c: key, data: doc, sha: sha } }).then(function (r) {
-        sha = r.sha; doc = r.data; setDirty(false); draw();
-        toast("Saved. Publishing to the website…", "ok");
-        startPublishWatch();
+      api("save", { body: { c: key, data: doc, version: version } }).then(function (r) {
+        version = r.version; doc = r.data; setDirty(false); draw();
+        if (!histBox.hidden) loadHistory();
+        toast("Saved. The change is live on the website now.", "ok");
       }).catch(function (e) {
         toast(e.message, "error");
-      }).then(function () { saveBtn.disabled = false; saveBtn.textContent = "Save and publish"; });
+      }).then(function () { saveBtn.disabled = false; saveBtn.textContent = "Save"; });
+    }
+
+    function toggleHistory() {
+      histBox.hidden = !histBox.hidden;
+      if (!histBox.hidden) loadHistory();
+    }
+    function loadHistory() {
+      clear(histBox);
+      add(histBox, h("h2", null, "Saved versions"), h("p", { class: "muted" }, "Load an earlier version into the editor, check it, then press Save to put it back on the website."));
+      var list = h("ul", { class: "hist-list" }, h("li", { class: "muted" }, "Loading…"));
+      add(histBox, list);
+      api("history", { query: "&c=" + encodeURIComponent(key) }).then(function (r) {
+        clear(list);
+        if (!r.versions.length) return add(list, h("li", { class: "muted" }, "No saved versions yet. Versions are kept from the first time this section is saved in the admin panel."));
+        r.versions.forEach(function (v, i) {
+          add(list, h("li", null,
+            h("span", null, fmtDate(v.saved), " · ", v.user, i === 0 ? h("span", { class: "pill" }, "current") : null),
+            i === 0 ? null : h("button", { class: "btn small", type: "button", onclick: function () {
+              if (S.dirty && !confirm("Discard your unsaved changes and load this version?")) return;
+              api("version", { query: "&c=" + encodeURIComponent(key) + "&id=" + encodeURIComponent(v.id) }).then(function (res) {
+                doc = res.data; draw(); setDirty(true);
+                toast("Version from " + fmtDate(v.saved) + " loaded. Press Save to restore it.", "ok");
+                window.scrollTo(0, 0);
+              }).catch(function (e) { toast(e.message, "error"); });
+            } }, "Load this version")));
+        });
+      }).catch(function (e) { clear(list); add(list, h("li", { class: "form-error" }, e.message)); });
     }
   }
 
@@ -565,7 +546,7 @@
         return api("upload", { body: { name: f.name, data: dataUrl.split(",")[1] } });
       }).then(function (r) {
         current = r.path; set(r.path); changed(box); draw();
-        toast("Image uploaded. Press Save and publish to use it.", "ok");
+        toast("Image uploaded. Press Save to use it on the website.", "ok");
       }).catch(function (e) { toast(e.message, "error"); draw(); });
     }
     draw();
@@ -671,12 +652,12 @@
 
   // ------------------------------------------------------------ account
   function account() {
-    add(main, pageHead("Users & settings", "Admin accounts, your password, email notifications and the GitHub connection."));
+    add(main, pageHead("Users & settings", "Admin accounts, your password, email notifications and backups."));
     var box = h("div", { class: "cols" }, h("p", { class: "muted" }, "Loading…"));
     add(main, box);
     api("account").then(function (acc) {
       clear(box);
-      add(box, [passwordPanel(), usersPanel(acc), notifyPanel(acc), tokenPanel(acc)]);
+      add(box, [passwordPanel(), usersPanel(acc), notifyPanel(acc), backupPanel()]);
     }).catch(function (e) { clear(box); add(box, h("p", { class: "form-error" }, e.message)); });
   }
   function panel(title, lead, body) { return h("section", { class: "panel" }, h("h2", null, title), lead ? h("p", { class: "muted" }, lead) : null, body); }
@@ -721,12 +702,9 @@
         "Save notification settings", "notify", function () { return { notify_email: to.value, from_email: from.value }; },
         function () { toast("Notification settings saved.", "ok"); }));
   }
-  function tokenPanel(acc) {
-    var t = h("input", { type: "password", autocomplete: "off", required: true, spellcheck: "false" });
-    return panel("GitHub connection", "The admin panel publishes changes through the website's GitHub repository. Replace the token here when it expires.",
-      [h("p", null, "Current token: ", h("code", null, acc.token_hint || "none")),
-        simpleForm([field("New access token", t, "Fine-grained token with Contents: Read and write and Actions: Read-only on the nexbridge repository.")],
-          "Replace token", "token", function () { return { token: t.value }; }, function (r, form) { form.reset(); toast("Token replaced.", "ok"); render(); })]);
+  function backupPanel() {
+    return panel("Backup", "Download a copy of all website text and settings. Keep it somewhere safe; your web developer can restore the site from it.",
+      h("a", { class: "btn", href: "/admin/api.php?a=backup" }, icon("dl"), "Download content backup"));
   }
 
   start();

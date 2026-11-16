@@ -3,6 +3,9 @@ Thumbs.db
 node_modules/
 .env
 __pycache__/
-# Private server data: form submissions and admin panel settings (never commit)
+# Private server data: form submissions, admin settings and live content (never commit)
 api/data/*
 !api/data/.htaccess
+# Images uploaded in the admin panel live only on the server
+uploads/*
+!uploads/.htaccess

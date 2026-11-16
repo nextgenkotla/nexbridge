@@ -40,7 +40,7 @@ function nx_collections(): array
 
     return [
         'settings' => [
-            'file' => 'site.json', 'label' => 'Contact & settings', 'group' => 'Website',
+            'view' => '/contact/', 'file' => 'site.json', 'label' => 'Contact & settings', 'group' => 'Website',
             'intro' => 'Contact details, social media and analytics. Empty fields are simply hidden on the website.',
             'type' => 'object',
             'fields' => [
@@ -61,7 +61,7 @@ function nx_collections(): array
             ],
         ],
         'home' => [
-            'file' => 'home.json', 'label' => 'Homepage', 'group' => 'Website',
+            'view' => '/', 'file' => 'home.json', 'label' => 'Homepage', 'group' => 'Website',
             'intro' => 'The large banner at the top of the homepage and the About section beneath it.',
             'type' => 'object',
             'fields' => [
@@ -74,7 +74,7 @@ function nx_collections(): array
             ],
         ],
         'about' => [
-            'file' => 'about.json', 'label' => 'About us', 'group' => 'Website',
+            'view' => '/about/', 'file' => 'about.json', 'label' => 'About us', 'group' => 'Website',
             'intro' => 'The About Us page: introduction, vision, mission, values, reasons to choose you and your process.',
             'type' => 'object',
             'fields' => [
@@ -88,7 +88,7 @@ function nx_collections(): array
             ],
         ],
         'team' => [
-            'file' => 'team.json', 'label' => 'Team', 'group' => 'Website',
+            'view' => '/about/team/', 'file' => 'team.json', 'label' => 'Team', 'group' => 'Website',
             'intro' => 'Each member gets a profile page. The order here is the order on the website.',
             'type' => 'list', 'item_label' => 'name', 'add_label' => 'Add team member',
             'fields' => [
@@ -101,7 +101,7 @@ function nx_collections(): array
             ],
         ],
         'articles' => [
-            'file' => 'articles.json', 'label' => 'Knowledge Center', 'group' => 'Content',
+            'view' => '/insights/', 'file' => 'articles.json', 'label' => 'Knowledge Center', 'group' => 'Content',
             'intro' => 'Blog articles and guides. New articles appear on the homepage and in the Knowledge Center.',
             'type' => 'object',
             'fields' => [
@@ -119,7 +119,7 @@ function nx_collections(): array
             ],
         ],
         'stories' => [
-            'file' => 'stories.json', 'label' => 'Success stories', 'group' => 'Content',
+            'view' => '/success-stories/', 'file' => 'stories.json', 'label' => 'Success stories', 'group' => 'Content',
             'intro' => 'Testimonials, visa and admission successes. Only publish stories your clients have agreed to share.',
             'type' => 'list', 'item_label' => 'name', 'item_sub' => 'type', 'add_label' => 'Add a story', 'add_first' => true,
             'fields' => [
@@ -134,7 +134,7 @@ function nx_collections(): array
             ],
         ],
         'partners' => [
-            'file' => 'partners.json', 'label' => 'Partners', 'group' => 'Content',
+            'view' => '/partners/', 'file' => 'partners.json', 'label' => 'Partners', 'group' => 'Content',
             'intro' => 'Only add partners who have authorized you to show their name and logo.',
             'type' => 'list', 'item_label' => 'name', 'item_sub' => 'type', 'add_label' => 'Add a partner',
             'fields' => [
@@ -146,7 +146,7 @@ function nx_collections(): array
             ],
         ],
         'gallery' => [
-            'file' => 'gallery.json', 'label' => 'Gallery', 'group' => 'Content',
+            'view' => '/gallery/', 'file' => 'gallery.json', 'label' => 'Gallery', 'group' => 'Content',
             'intro' => 'Photos for the Gallery page. The page and its menu link appear once you add the first photo.',
             'type' => 'list', 'item_label' => 'caption', 'item_sub' => 'album', 'item_image' => 'image', 'add_label' => 'Add a photo', 'add_first' => true,
             'fields' => [
@@ -156,7 +156,7 @@ function nx_collections(): array
             ],
         ],
         'faqs' => [
-            'file' => 'faqs.json', 'label' => 'FAQs', 'group' => 'Content',
+            'view' => '/faqs/', 'file' => 'faqs.json', 'label' => 'FAQs', 'group' => 'Content',
             'intro' => 'The FAQ page. Questions on individual services and destinations are edited on those pages.',
             'type' => 'list', 'item_label' => 'group', 'add_label' => 'Add a topic',
             'fields' => [
@@ -165,7 +165,7 @@ function nx_collections(): array
             ],
         ],
         'services' => [
-            'file' => 'services.json', 'label' => 'Services', 'group' => 'Services & destinations',
+            'view' => '/services/', 'file' => 'services.json', 'label' => 'Services', 'group' => 'Services & destinations',
             'intro' => 'The six service categories and every service page inside them. Changing a web address changes the page link, so avoid it once a page is shared.',
             'type' => 'list', 'item_label' => 'name', 'fixed' => true,
             'fields' => [
@@ -191,7 +191,7 @@ function nx_collections(): array
             ],
         ],
         'destinations' => [
-            'file' => 'destinations.json', 'label' => 'Destinations', 'group' => 'Services & destinations',
+            'view' => '/destinations/', 'file' => 'destinations.json', 'label' => 'Destinations', 'group' => 'Services & destinations',
             'type' => 'object',
             'fields' => [
                 nx_f('destinations', 'Study destinations', 'list', ['item_label' => 'name', 'add_label' => 'Add a destination', 'fields' => [
@@ -336,7 +336,7 @@ function nx_validate_field(array $fd, $v, string $where, $root)
             }
             break;
         case 'image':
-            if (!preg_match('#^/assets/[A-Za-z0-9/_.\-]+$#', $s) || str_contains($s, '..')) {
+            if (!preg_match('#^/(assets|uploads)/[A-Za-z0-9/_.\-]+$#', $s) || str_contains($s, '..')) {
                 throw new ValidationError("$where: choose an image with the upload button.");
             }
             break;

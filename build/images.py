@@ -1,3 +1,4 @@
+"""Image pipeline for the static design assets in assets/img/. Run: python build/images.py"""
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont, ImageOps
@@ -104,3 +105,10 @@ def build_all(root):
     tw = draw.textlength(tagline, font=f)
     draw.text(((1200 - tw) / 2, 430), tagline, font=f, fill=(200, 216, 240))
     og.save(out / "og.png", optimize=True)
+
+
+if __name__ == "__main__":
+    # Regenerates the logo, favicon, team photos, flags and social image in assets/img/
+    # from the originals in build/source-img/. Needs Pillow: pip install pillow
+    build_all(Path(__file__).resolve().parent.parent)
+    print("Images written to assets/img/")
