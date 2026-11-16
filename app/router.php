@@ -84,7 +84,8 @@ function nx_dispatch(string $uri): void
         return;
     }
     if ($path === '/robots.txt') {
-        nx_send(200, 'text/plain', "User-agent: *\nDisallow: /api/\nDisallow: /admin/\n\nSitemap: " . C('SITE')['url'] . "/sitemap.xml\n");
+        nx_send(200, 'text/plain', "# Nexbridge Solutions
+User-agent: *\nDisallow: /api/\nDisallow: /admin/\n\nSitemap: " . C('SITE')['url'] . "/sitemap.xml\n");
         return;
     }
     // Canonical addresses end with a slash: /about -> /about/
